@@ -41,7 +41,7 @@ type RawSymBander interface {
 // NewSymBandDense creates a new SymBand matrix with n rows and columns. If data == nil,
 // a new slice is allocated for the backing slice. If len(data) == n*(k+1),
 // data is used as the backing slice, and changes to the elements of the returned
-// BandDense will be reflected in data. If neither of these is true, NewSymBandDense
+// SymBandDense will be reflected in data. If neither of these is true, NewSymBandDense
 // will panic. k must be at least zero and less than n, otherwise NewBandDense will panic.
 //
 // The data must be arranged in row-major order constructed by removing the zeros
@@ -125,4 +125,38 @@ func (s *SymBandDense) TBand() Banded {
 // in returned blas64.SymBand.
 func (s *SymBandDense) RawSymBand() blas64.SymmetricBand {
 	return s.mat
+}
+
+// Do calls the function fn for each of the filled elements of s. The function fn
+// takes a row/column index and the element value of s at (i, j).
+func (s *SymBandDense) Do(fn func(i, j int, v float64)) {
+	for i := 0; i < s.mat.N; i++ {
+		for j := max(0, i-s.mat.K); j < min(s.mat.N, i+s.mat.K+1); j++ {
+			fn(i, j, s.at(i, j))
+		}
+	}
+}
+
+// DoRow calls the function fn for each of the filled elements of row i of s. The function fn
+// takes a row/column index and the element value of s at (i, j).
+func (s *SymBandDense) DoRow(i int, fn func(i, j int, v float64)) {
+	if i < 0 || s.mat.N <= i {
+		panic(ErrRowAccess)
+	}
+	for j := max(0, i-s.mat.K); j < min(s.mat.N, i+s.mat.K+1); j++ {
+		fn(i, j, s.at(i, j))
+	}
+}
+
+// DoCol calls the function fn for each of the filled elements of column j of s. The function fn
+// takes a row/column index and the element value of s at (i, j).
+func (s *SymBandDense) DoCol(j int, fn func(i, j int, v float64)) {
+	if j < 0 || s.mat.N <= j {
+		panic(ErrColAccess)
+	}
+	for i := 0; i < s.mat.N; i++ {
+		if i-s.mat.K <= j && j < i+s.mat.K+1 {
+			fn(i, j, s.at(i, j))
+		}
+	}
 }
